@@ -7,6 +7,8 @@ import { createSnapTransaction } from "../services/midtrans.service.js";
 
 export const paymentsRouter = Router();
 
+const PAID_STATUSES = ["settlement", "capture"];
+
 function generateOrderId() {
   const t = Date.now().toString(36);
   const r = Math.random().toString(36).slice(2, 8);
@@ -27,8 +29,50 @@ paymentsRouter.post("/intents", requireAuth, async (req, res, next) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User tidak ditemukan" });
 
+    const normalized = [];
+    const seen = new Set();
+    for (const raw of months) {
+      const year = Number(raw?.year);
+      const month = Number(raw?.month);
+      if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Setiap item months wajib { year, month } yang valid" });
+      }
+      const key = `${year}-${month}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      normalized.push({ year, month });
+    }
+    if (normalized.length === 0) {
+      return res.status(400).json({ message: "months tidak valid" });
+    }
+
+    for (const { year, month } of normalized) {
+      const alreadyPaid = await Payment.findOne({
+        userId: user._id,
+        status: { $in: PAID_STATUSES },
+        monthsCovered: { $elemMatch: { year, month } },
+      }).lean();
+      if (alreadyPaid) {
+        return res.status(409).json({
+          message: `Iuran ${month}/${year} sudah lunas. Tidak perlu bayar lagi.`,
+        });
+      }
+      const pending = await Payment.findOne({
+        userId: user._id,
+        status: "pending",
+        monthsCovered: { $elemMatch: { year, month } },
+      }).lean();
+      if (pending) {
+        return res.status(409).json({
+          message: `Masih ada tagihan menunggu pembayaran untuk ${month}/${year}. Lanjutkan pembayaran yang sama atau tunggu hingga selesai/kadaluarsa.`,
+          existingOrderId: pending.orderId,
+          existingRedirectUrl: pending.snapRedirectUrl || null,
+        });
+      }
+    }
+
     const fee = user.monthlyFeeAmount;
-    const amount = fee * months.length;
+    const amount = fee * normalized.length;
 
     const orderId = generateOrderId();
     const doc = await Payment.create({
@@ -36,10 +80,7 @@ paymentsRouter.post("/intents", requireAuth, async (req, res, next) => {
       userId: user._id,
       orderId,
       amount,
-      monthsCovered: months.map((m) => ({
-        year: Number(m.year),
-        month: Number(m.month),
-      })),
+      monthsCovered: normalized,
       status: "pending",
     });
 

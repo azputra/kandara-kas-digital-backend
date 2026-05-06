@@ -9,7 +9,8 @@
     "migrate:up": "migrate-mongo up -f migrate-mongo-config.cjs",
     "migrate:down": "migrate-mongo down -f migrate-mongo-config.cjs",
     "migrate:create": "migrate-mongo create -f migrate-mongo-config.cjs",
-    "seed": "node seeders/seed.js"
+    "seed": "node seeders/seed.js",
+    "reset-demo": "node scripts/reset-demo-db.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
