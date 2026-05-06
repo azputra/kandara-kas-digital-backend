@@ -145,6 +145,8 @@ async function computeMonthlyLedger({ orgId, year, month }) {
     const expected = Number(u.monthlyFeeAmount) || 0;
     const status = paid >= expected ? "Lunas" : paid > 0 ? "Sebagian" : "Belum";
     return {
+      userId: u._id,
+      role: u.role,
       name: u.displayName,
       email: u.email,
       expected,
@@ -315,6 +317,39 @@ hrRouter.get("/dashboard", requireAuth, requireRole("hr", "admin"), async (req, 
         incomeByMonth,
         expenseByMonth,
       },
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * GET /api/hr/members/unpaid?year=YYYY&month=M
+ * Anggota (role member) yang belum lunas untuk bulan tersebut (Belum / Sebagian).
+ */
+hrRouter.get("/members/unpaid", requireAuth, requireRole("hr", "admin"), async (req, res, next) => {
+  try {
+    const orgId = new mongoose.Types.ObjectId(req.user.organizationId);
+    const now = new Date();
+    const year = parseIntOr(req.query.year, now.getFullYear());
+    const month = parseIntOr(req.query.month, now.getMonth() + 1);
+
+    const ledger = await computeMonthlyLedger({ orgId, year, month });
+    const members = ledger.rows
+      .filter((r) => r.role === "member" && r.status !== "Lunas")
+      .map((r) => ({
+        userId: r.userId,
+        name: r.name,
+        email: r.email,
+        expected: r.expected,
+        paid: Math.round(r.paid),
+        status: r.status,
+      }));
+
+    res.json({
+      period: { year, month },
+      count: members.length,
+      members,
     });
   } catch (e) {
     next(e);
