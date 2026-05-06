@@ -37,6 +37,30 @@ async function run() {
       role: "member",
       monthlyFeeAmount: 50_000,
     },
+    {
+      email: "anggota2@kandara.local",
+      displayName: "Pak Budi",
+      role: "member",
+      monthlyFeeAmount: 50_000,
+    },
+    {
+      email: "anggota3@kandara.local",
+      displayName: "Mba Sari",
+      role: "member",
+      monthlyFeeAmount: 30_000,
+    },
+    {
+      email: "anggota4@kandara.local",
+      displayName: "Mas Andre",
+      role: "member",
+      monthlyFeeAmount: 100_000,
+    },
+    {
+      email: "anggota5@kandara.local",
+      displayName: "Mba Putri",
+      role: "member",
+      monthlyFeeAmount: 50_000,
+    },
   ];
 
   for (const u of users) {
@@ -58,6 +82,7 @@ async function run() {
 
   console.log("Seed selesai.");
   console.log(`Organisasi: ${org.name} (${org.slug})`);
+  console.log("Hapus semua data demo lalu seed ulang: ALLOW_RESET_DEMO=yes npm run reset-demo && npm run seed");
   console.log("Akun contoh:");
   for (const u of users) {
     console.log(`  ${u.email} / ${passwordPlain}  [${u.role}]`);
